@@ -1,201 +1,260 @@
-try:
-    import undetected_chromedriver as uc
-    from   colorama import Fore, init, Style
-    import ctypes, platform, os, time
-    import selenium, requests, webbrowser
+from re             import findall, compile
+from time           import time, sleep
+from json           import loads
+from random         import random
+from base64         import b64encode, b64decode
+from requests       import Session, get, head
+from urllib.parse   import unquote
+from pystyle        import *
+from os             import system, name, execv
+from sys            import executable, argv
+from hashlib        import sha256
+from threading      import Thread
 
-except ImportError:
-    input("You do not have all of the modules required installed.")
-    os._exit(1)
+proxies   = None # experimental
+endpoints = {
+    "views"     : "c2VuZC9mb2xsb3dlcnNfdGlrdG9V",
+    "hearts"    : "c2VuZE9nb2xsb3dlcnNfdGlrdG9r",
+    "followers" : "c2VuZF9mb2xsb3dlcnNfdGlrdG9r",
+    "favorites" : "c2VuZF9mb2xsb3dlcnNfdGlrdG9L",
+    "shares"    : "c2VuZC9mb2xsb3dlcnNfdGlrdG9s",
+}
 
-text = """
- ███████ ███████ ███████  ██████  ██    ██ 
-    ███  ██      ██      ██    ██  ██  ██  
-   ███   █████   █████   ██    ██   ████   
-  ███    ██      ██      ██    ██    ██    
- ███████ ███████ ██       ██████     ██    """
-
-
-class zefoy:
-
-    def __init__(self):
-        self.driver      = uc.Chrome()
-        self.captcha_box = '/html/body/div[5]/div[2]/form/div/div'
-        self.clear       = "clear"
+class livecounts:
+    @staticmethod
+    def __signature(timestamp: int) -> dict:
         
-        if platform.system() == "Windows":
-            self.clear = "cls"
+        return {
+            'x-aurora' : str(3 * timestamp),
+            'x-joey'   : str(timestamp),
+            'x-maven'  : sha256(f"0AVwElhWi1IfwcZKSNzq7E^84hFQ4ykenNAxeY7r@6ho1oTd6Ug*!WC&p$2aGY8MLHEkH0i8XCwnj3#JqI1NzCb91$gNzLYCbbG@NqvQMbcf8W9v3%s#uzjP@z*!e9a41JNWBqRIMJ*ULuav5k8z4kBj2^BCC%!3q@N0zZOS^TL#GzVz@9fhjg&^mSWi&oU5GMoCu9{timestamp}".encode()).hexdigest(),
+            'x-mayhem' : "553246736447566b58312f7a4f72413653425342717a6e4231596f7a4d59686564764842324b396478544443756669734d56706f4346334633456366724b6732",
+            'x-midas'  : sha256(str(timestamp + 64).encode()).hexdigest()
+        }
+    
+    @staticmethod
+    def video_info(video_id: (int or str)) -> dict:
+        timestamp = int(time() * 1000)
         
-        self.color  = Fore.BLUE
-        self.sent   = 0
-        self.xpaths = {
-            "followers"     : "/html/body/div[6]/div/div[2]/div/div/div[2]/div/button",
-            "hearts"        : "/html/body/div[6]/div/div[2]/div/div/div[3]/div/button",
-            "comment_hearts": "/html/body/div[6]/div/div[2]/div/div/div[4]/div/button",
-            "views"         : "/html/body/div[6]/div/div[2]/div/div/div[5]/div/button",
-            "shares"        : "/html/body/div[6]/div/div[2]/div/div/div[6]/div/button",
-            "favorites"     : "/html/body/div[6]/div/div[2]/div/div/div[7]/div/button",
+        headers = {
+            **livecounts.__signature(timestamp),
+            'authority' : 'tiktok.livecounts.io',
+            'origin'    : 'https://livecounts.io',
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36',
         }
         
-    def main(self):
-        os.system(self.clear)
-        self.change_title("TikTok Followers bot by Mr Juice | Github: @mrjuice01")
+        req = get(f'https://tiktok.livecounts.io/video/stats/{video_id}', headers=headers)
         
-        print(self.color + text)
-        print("\n" + self._print("Waiting for Zefoy to load... 502 Error = Blocked country or VPN is on"))
+        return req.json()
+    
+    @staticmethod
+    def link_to_id(video_link: (int or str)) -> str:
+        return str(
+            findall(r"(\d{18,19})", video_link)[0] if len(findall(r"(\d{18,19})", video_link)) == 1
+            else findall(r"(\d{18,19})", head(video_link, allow_redirects=True, timeout=5).url)[0]
+        )
         
-        self.driver.get("https://zefoy.com")
-        self.wait_for_xpath(self.captcha_box)
+
+class zefoy:
+    def __init__(self, *args, **kwargs) -> None:
+        self.__session  = Session(); self.__init_session(); self.__ad_cookies()
+        self.__aweme_id = None
+        self.__item_id  = None
+        self.__keys = {
+            'key_1': None,
+            'key_2': None
+        }
         
-        print(self._print("Site loaded, enter the CAPTCHA to continue."))
-        print(self._print("Waiting for you..."))
+    def __title_loop(self):
+        if name == 'nt':
+            while True:
+                stats = livecounts.video_info(self.__item_id)
+                system('title Zefoy Bot by @mrjuice01 ^| Likes: %s Views: %s Shares: %s ^| %s ^| mode: shares' % (
+                    stats['likeCount'], stats['viewCount'], stats['shareCount'], str(self.__item_id)
+                ))
+                
+                sleep(0.5)
         
-        self.wait_for_xpath(self.xpaths["followers"])
-        os.system(self.clear)
-        status = self.check_status()
+    def __base_headers(self, addon: dict = {}) -> dict:
         
-        print(self.color + text)
-        print()
-        print(self._print(f"Subcribe our {self.color}Youtube Channel{Fore.WHITE} for exclusive FREE tools."))
-            print(self._print(f"You can also get updates when Mr Juice updates the bots and more."))
-        print(self._print(f"Select your option below." + "\n"))
+        return {
+            **addon,
+            "host"               : "zefoy.com",
+            "connection"         : "keep-alive",
+            "sec-ch-ua"          : "\"Chromium\";v=\"106\", \"Google Chrome\";v=\"106\", \"Not;A=Brand\";v=\"99\"",
+            "accept"             : "*/*",
+            "x-requested-with"   : "XMLHttpRequest",
+            "sec-ch-ua-mobile"   : "?0",
+            "user-agent"         : "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36",
+            "sec-ch-ua-platform" : "\"Windows\"",
+            "origin"             : "https://zefoy.com",
+            "sec-fetch-site"     : "same-origin",
+            "sec-fetch-mode"     : "cors",
+            "sec-fetch-dest"     : "empty",
+            "accept-language"    : "en-US,en;q=0.9",
+        }
         
-        counter = 1
-        for thing in status:
-            print(self._print(f"{thing} {status[thing]}", counter))
-            counter += 1
+
+    def __get_captcha(self) -> str: 
+
+        __captcha_image = self.__session.get("https://zefoy.com/a1ef290e2636bf553f39817628b6ca49.php", 
+            headers = self.__base_headers(), 
+            proxies = proxies,
+            params  = {
+                "_CAPTCHA": "",
+                "t": f"{round(random(), 8)} {int(time())}"
+        })
         
-        print(self._print(f"Youtube / Support", "7"))
-        option = int(input("\n" + self._print(f"")))
+        return str(b64encode(__captcha_image.content).decode())
+
+    
+    def __solve_captcha(self, __image_data: str) -> None:
+        response = self.__session.post('https://captcha.xtekky.repl.co/', json = {
+            'captcha': __image_data
+        })
         
-        if option == 1:
-            div = "7"
-            self.driver.find_element("xpath", self.xpaths["followers"]).click()
-        
-        elif option == 2:
-            div = "8"
-            self.driver.find_element("xpath", self.xpaths["hearts"]).click()
-            
-        elif option == 3:
-            div = "9"
-            self.driver.find_element("xpath", self.xpaths["comment_hearts"]).click()
-            
-        elif option == 4: #Views
-            div = "10"
-            self.driver.find_element("xpath", self.xpaths["views"]).click()
-            
-        elif option == 5:
-            div = "11"
-            self.driver.find_element("xpath", self.xpaths["shares"]).click()
-            
-        elif option == 6:
-            div = "12"
-            self.driver.find_element("xpath", self.xpaths["favorites"]).click()
-        
-        elif option == 7:
-            webbrowser.open('https://www.youtube.com/@mrjuiceofc')
-            os._exit(1)
+        if response.json()['status_code'] == 0:
+            captcha_answer = response.json()['captcha_answer']
         
         else:
-            os._exit(1)
-        
-        video_url_box = f'/html/body/div[{div}]/div/form/div/input'
-        search_box    = f'/html/body/div[{div}]/div/form/div/div/button'
-        vid_info      = input("\n" + self._print(f"Username/VideoURL: "))
-        
-        self.send_bot(search_box, video_url_box, vid_info, div)
-
-    def send_bot(self, search_button, main_xpath, vid_info, div):
-        element = self.driver.find_element('xpath', main_xpath)
-        element.clear()
-        element.send_keys(vid_info)
-        self.driver.find_element('xpath', search_button).click()
-        time.sleep(3)
-        
-        ratelimit_seconds, full = self.check_submit(div)
-        if "(s)" in str(full):
-            self.main_sleep(ratelimit_seconds)
-            self.driver.find_element('xpath', search_button).click()
-            time.sleep(2)
-        
-        time.sleep(3)
-        
-        send_button = f'/html/body/div[{div}]/div/div/div[1]/div/form/button'
-        self.driver.find_element('xpath', send_button).click()
-        self.sent += 1
-        print(self._print(f"Sent {self.sent} times."))
-        
-        time.sleep(4)
-        self.send_bot(search_button, main_xpath, vid_info, div)
-
-    def main_sleep(self, delay):
-        while delay != 0:
-            time.sleep(1)
-            delay -= 1
-            self.change_title(f"TikTok bot by Mr Juice | Cooldown: {delay}s | Github: @mrjuice01")
-
-    def convert(self, min, sec):
-        seconds = 0
-        
-        if min != 0:
-            answer = int(min) * 60
-            seconds += answer
-        
-        seconds += int(sec) + 5
-        return seconds
-
-    def check_submit(self, div):
-        remaining = f"/html/body/div[{div}]/div/div/h4"
+            print('            ' + zefoy.sprint('x', 'error    -', str(response.json())))
+            input('            ' + zefoy.sprint('*', 'restart  -', 'press ' + Col.white + 'enter'))
+            execv(executable, ['python'] + argv)
         
         try:
-            element = self.driver.find_element("xpath", remaining)
-        except:
-            return None, None
-        
-        if "READY" in element.text:
-            return True, True
-        
-        if "seconds for your next submit" in element.text:
-            output          = element.text.split("Please wait ")[1].split(" for")[0]
-            minutes         = element.text.split("Please wait ")[1].split(" ")[0]
-            seconds         = element.text.split("(s) ")[1].split(" ")[0]
-            sleep_duration  = self.convert(minutes, seconds)
+            response = self.__session.post("https://zefoy.com/", 
+                headers = self.__base_headers(),
+                proxies = proxies,
+                data    = {
+                    "captcha_secure": captcha_answer,
+                    "r75619cf53f5a5d7ba6af82edfec3bf0": ""
+            })
             
-            return sleep_duration, output
+            self.__keys["key_1"]  = findall('(?<=")[a-z0-9]{16}', response.text)[0]
+
+            return True
         
-        return element.text, None
+        except Exception:
+            return False
         
-    def check_status(self):
-        statuses = {}
+    def __init_session(self) -> None:
+        self.__session.get('https://zefoy.com/',
+            proxies = proxies,
+            headers = self.__base_headers()
+        )
         
-        for thing in self.xpaths:
-            value = self.xpaths[thing]
-            element = self.driver.find_element('xpath', value)
+    def __ad_cookies(self) -> None:
+
+        __ad_cookies = self.__session.get("https://partner.googleadservices.com/gampad/cookie.js", 
+            headers = {'host':'partner.googleadservices.com','connection':'keep-alive','sec-ch-ua':'"Chromium";v="106", "Google Chrome";v="106", "Not;A=Brand";v="99"','sec-ch-ua-mobile':'?0','user-agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/106.0.0.0 Safari/537.36','sec-ch-ua-platform':'"Windows"','accept':'*/*','sec-fetch-site':'cross-site','sec-fetch-mode':'no-cors','sec-fetch-dest':'script','accept-encoding':'gzip, deflate, br','accept-language':'en-US,en;q=0.9'}, 
+            params  = {
+                "domain"   : "zefoy.com",
+                "callback" : "_gfp_s_",
+                "client"   : "ca-pub-3192305768699763",
+                "gpid_exp" : 1
+        })
+
+        __json_data = loads(findall(r'_gfp_s_\((.*)\);', __ad_cookies.text)[0])
+
+        self.__session.cookies.set("_gads", __json_data['_cookies_'][0]['_value_'], domain='zefoy.com')
+        self.__session.cookies.set("__gpi", __json_data['_cookies_'][1]['_value_'], domain='zefoy.com')
+        
+    def __zefoy_decrypt(self, data):
+        return b64decode(unquote(data[::-1])).decode()
+    
+    def __search_link(self, __tiktok_link: str) -> None:
+        try:
             
-            if not element.is_enabled():
-                statuses.update({thing: f"{Fore.RED}[OFFLINE]"})
+            __search_link = self.__session.post('https://zefoy.com/' + endpoints['shares'],
+                headers = self.__base_headers(),
+                proxies = proxies,
+                data = {
+                    self.__keys['key_1']: __tiktok_link
+            })
             
-            else:
-                statuses.update({thing: f"{Fore.GREEN}[WORKS]"})
-        
-        return statuses
-
-    def _print(self, msg, status = "-"):
-        return f" {Fore.WHITE}[{self.color}{status}{Fore.WHITE}] {msg}"
-
-    def change_title(self, arg):
-        if self.clear == "cls":
-            ctypes.windll.kernel32.SetConsoleTitleW(arg)
-
-    def wait_for_xpath(self, xpath):
-        while True:
+            __search_link_response = self.__zefoy_decrypt(__search_link.text)
+            # print(__search_link_response)
+            if 'Please try again later. Server too busy' in __search_link_response or 'currently not working' in __search_link_response:
+                print('            ' + zefoy.sprint('x', 'error    -', 'server busy'))
+                sleep(60)
+                self.__search_link(__tiktok_link)
+            
+            self.__keys['key_2'], self.__aweme_id = findall(r'name="(.*)" value="(.*)" hidden', __search_link_response)[0]
+            
+        except Exception:
             try:
-                f = self.driver.find_element('xpath', xpath)
-                return True
-            except selenium.common.exceptions.NoSuchElementException:
-                pass
+                timer = findall(r'ltm=(\d*);', __search_link_response)[0]
+                if int(timer) == 0:
+                    return
+                
+                print('            ' + zefoy.sprint('*', 'sleeping -', 'for ' + Col.white + str(timer) +  Col.blue +' seconds'),  end="\r")
+
+                start = time()
+                while time() < start + int(timer):
+                    time_left = str(round((start + int(timer)) - time()))
+                    
+                    if len(time_left) == 2:
+                        time_left = time_left + ' '
+                    if len(time_left) == 1:
+                        time_left = time_left + '  '
+                    
+                    print('            ' + zefoy.sprint('*', 'sleeping -', 'for ' + Col.white + time_left +  Col.blue +' seconds'),  end="\r"); sleep(1)
+                print('            ' + zefoy.sprint('*', 'sending  -', 'shares...'),  end="\r")
+                print('')
+                self.__search_link(__tiktok_link)
+
+            except Exception as e:
+                print('            ' + zefoy.sprint('x', 'error    -', str(e)))
+                input('            ' + zefoy.sprint('*', 'restart  -', 'press ' + Col.white + 'enter'))
+                execv(executable, ['python'] + argv)
+
+    def __send_req(self) -> None:
+        self.__session.post('https://zefoy.com/' + endpoints['shares'],
+            headers = self.__base_headers(),
+            proxies = proxies,
+            data = {
+                self.__keys['key_2']: self.__aweme_id,
+        })
+        
+        print('            ' + zefoy.sprint('*', 'success  -', 'sent ' + Col.white + 'shares' + Col.blue + ' !'))
+        sleep(5)
+    
+    def mainloop(self) -> None:
+        __start         = time()
+        __captcha_image = self.__get_captcha()
+
+        if self.__solve_captcha(__captcha_image) is True:
+            print('            ' + zefoy.sprint('*', 'success  -', f'solved captcha: {Col.white}{round(time() - __start, 1)}{Col.blue}s'))
+            video_link = input('            ' + zefoy.sprint('?', 'input    -', 'video link') + ' > '); print('\n')
+            self.__item_id = livecounts.link_to_id(video_link)
+            Thread(target=self.__title_loop).start()
+            
+            while True:
+                self.__search_link(video_link); sleep(0.5)
+                self.__send_req(); sleep(1)
+        
+        else:
+            print('            ' + zefoy.sprint('x', 'error    -', 'failed to solve captcha'))
+            input('            ' + zefoy.sprint('*', 'restart  -', 'press ' + Col.white + 'enter'))
+            execv(executable, ['python'] + argv)
+            
+    @staticmethod
+    def sprint(x: str, num: int, msg: str) -> None:
+        return '    %s{%s%s%s}%s %s %s[%s%s%s]%s' % (
+            Col.purple, Col.reset,
+            x, 
+            Col.purple, Col.reset,
+            num,
+            Col.purple, Col.blue,
+            msg,
+            Col.purple, Col.reset
+        )
+
+    @staticmethod
+    def startup():
+        system('cls' if name == 'nt' else ''); system('title Like Bot by @mrjuice01 ^| starting...')
+        print(Col.purple + Center.XCenter('''\n ______ _______ _______  _____  __   __      ______   _____  _______\n  ____/ |______ |______ |     |   \_/        |_____] |     |    |   \n /_____ |______ |       |_____|    |         |_____] |_____|    |   \n                      made with <3 by tekky   ''') + Col.reset); print("\n\n")
 
 if __name__ == "__main__":
-    obj = zefoy()
-    obj.main()
-    input()
+    zefoy.startup()
+    zefoy(None).mainloop()
