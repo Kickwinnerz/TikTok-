@@ -8,7 +8,7 @@ except ImportError:
     input("You do not have all of the modules required installed.")
     os._exit(1)
 
-text = """
+text= """
  
  /$$   /$$ /$$           /$$      
 | $$  /$$/|__/          | $$      
